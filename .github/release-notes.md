@@ -1,3 +1,13 @@
+## What's new in 1.1
+
+- **Volume control while watching.** Hover the speaker icon for a slider, or use the mouse wheel.
+- **Settings** (gear icon at the top right):
+  - **Quality:** Auto, 720p, 1080p, 1440p or Source
+  - **Frame rate:** 15, 30 or 60 fps
+  - **Volume** and **audio output device**
+- Quality and frame rate change live while you share, without dropping viewers.
+- Settings are saved on your device.
+
 ## Download
 
 | | File |
