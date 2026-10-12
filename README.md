@@ -1,6 +1,6 @@
 # Nebula Share
 
-A Windows desktop app for peer-to-peer screen sharing. Click **Start sharing**, pick a whole screen or a single window, and send the 6-character code to a friend. They enter it in their copy of Nebula Share and see your screen live.
+A peer-to-peer screen sharing app for Windows, with a companion web app for iPhone and iPad. Click **Start sharing**, pick a whole screen or a single window, and send the 6-character code to a friend. They enter it in their copy of Nebula Share and see your screen live.
 
 - Choose an entire display or a single application window, with live thumbnails
 - Optional system audio (Windows loopback capture)
@@ -12,7 +12,25 @@ A Windows desktop app for peer-to-peer screen sharing. Click **Start sharing**, 
 |---|---|---|
 | ![Home](docs/home.png) | ![Picker](docs/picker.png) | ![Sharing](docs/sharing.png) |
 
-## Download / build
+## iPhone and iPad
+
+The same app is published as an installable web app at **https://mvpfishstick.github.io/ScreenShare/**.
+
+1. Open the link in **Safari** on the iPhone/iPad.
+2. Tap **Share → Add to Home Screen**. Nebula then opens full screen like a normal app, with its own icon.
+3. Enter the share code, or just tap an invite link from the sharer.
+
+On the PC, **Copy invite link** copies a link like `…/ScreenShare/#join=ABC123` that opens the stream directly.
+
+iOS lets apps *watch* a screen but doesn't let web apps capture the screen, so on iPhone/iPad the **Start sharing** button is disabled. Desktop browsers (Chrome, Edge, Firefox) can both share and watch from the same link.
+
+| iPhone home | iPhone watching |
+|---|---|
+| <img src="docs/iphone-home.png" width="260"> | <img src="docs/iphone-watch.png" width="260"> |
+
+**First-time setup (repo owner, once):** in GitHub go to *Settings → Pages* and set **Source** to **GitHub Actions**. Every push to `main` then runs *Deploy web app* and publishes `dist-web/`. Build it locally with `npm run build:web`.
+
+## Download / build (Windows)
 
 **Prebuilt:** every push to `main` runs the *Build Windows app* GitHub Action. Download the `NebulaShare-windows` artifact from the run. It contains:
 

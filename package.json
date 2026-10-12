@@ -7,9 +7,11 @@
   "author": "mvpfishstick",
   "license": "MIT",
   "scripts": {
+    "postinstall": "node scripts/copy-vendor.js",
     "start": "electron .",
     "dist": "electron-builder --win",
-    "dist:portable": "electron-builder --win portable"
+    "dist:portable": "electron-builder --win portable",
+    "build:web": "node scripts/build-web.js"
   },
   "dependencies": {
     "peerjs": "1.5.5"
@@ -27,13 +29,24 @@
     },
     "files": [
       "src/**/*",
-      "node_modules/peerjs/dist/peerjs.min.js",
+      "!src/renderer/sw.js",
+      "!src/renderer/manifest.webmanifest",
       "package.json"
     ],
     "win": {
       "target": [
-        { "target": "nsis", "arch": ["x64"] },
-        { "target": "portable", "arch": ["x64"] }
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
       ],
       "icon": "build/icon.png"
     },
@@ -46,5 +59,6 @@
     "portable": {
       "artifactName": "NebulaShare-Portable-${version}.exe"
     }
-  }
+  },
+  "homepage": "https://mvpfishstick.github.io/ScreenShare/"
 }

@@ -6,9 +6,61 @@
   const CODE_ALPHABET = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789'; // no 0/O/1/I/L
   const JOIN_TIMEOUT_MS = 20000;
 
+  // Where the hosted web app lives; invite links point here so phones can join.
+  const PUBLIC_WEB_URL = 'https://mvpfishstick.github.io/ScreenShare/';
+
   const $ = (id) => document.getElementById(id);
-  const api = window.nebula;
+  const api = window.nebula || createWebApi();
   const peerOptions = api.signal ? { ...api.signal } : {};
+
+  // Browser stand-in for the Electron preload bridge.
+  function createWebApi() {
+    const ua = navigator.userAgent;
+    const ios = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    return {
+      isWeb: true,
+      ios,
+      platform: 'web',
+      canShare: !!(navigator.mediaDevices && navigator.mediaDevices.getDisplayMedia) && !ios,
+      copy: async (text) => {
+        try {
+          await navigator.clipboard.writeText(text);
+        } catch (_) {
+          const ta = document.createElement('textarea');
+          ta.value = text;
+          document.body.appendChild(ta);
+          ta.select();
+          document.execCommand('copy');
+          ta.remove();
+        }
+      },
+      minimize() {},
+      maximize() {},
+      close() {},
+      signal: webSignalConfig(),
+    };
+  }
+
+  // A local signaling server can be picked with ?signal=http://127.0.0.1:9000/path
+  // (development only; other hosts are ignored so links can't redirect signaling).
+  function webSignalConfig() {
+    const raw = new URLSearchParams(location.search).get('signal');
+    if (!raw) return null;
+    try {
+      const url = new URL(raw);
+      if (!['localhost', '127.0.0.1'].includes(url.hostname)) return null;
+      const secure = url.protocol === 'https:';
+      return { host: url.hostname, port: Number(url.port) || (secure ? 443 : 80), path: url.pathname || '/', secure };
+    } catch (_) {
+      return null;
+    }
+  }
+
+  document.documentElement.classList.add(api.isWeb ? 'is-web' : 'is-desktop');
+  if (api.ios) document.documentElement.classList.add('is-ios');
+  if (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone) {
+    document.documentElement.classList.add('is-standalone');
+  }
 
   // ---------- State ----------
   let idlePeer = null; // anonymous peer used for watching + connectivity status
@@ -18,6 +70,7 @@
   let viewers = new Map(); // peerId -> { conn, call, label }
   let viewerSeq = 0;
 
+  let pendingJoinCode = null; // from an invite link, joined once we're online
   let watchConn = null;
   let watchCall = null;
   let joinTimer = null;
@@ -30,6 +83,7 @@
   // ---------- Helpers ----------
   function showView(id) {
     document.querySelectorAll('.view').forEach((v) => v.classList.toggle('active', v.id === id));
+    document.body.classList.toggle('watching', id === 'viewWatch');
   }
 
   let toastTimer = null;
@@ -80,6 +134,11 @@
     idlePeer.on('open', () => {
       reconnectDelay = 1000;
       setNetStatus('online', 'Online');
+      if (pendingJoinCode) {
+        const code = pendingJoinCode;
+        pendingJoinCode = null;
+        startWatch(code);
+      }
     });
     idlePeer.on('disconnected', () => {
       setNetStatus('offline', 'Reconnecting…');
@@ -109,9 +168,7 @@
       call.answer();
       call.on('stream', (stream) => {
         clearTimeout(joinTimer);
-        const v = $('remoteVideo');
-        v.srcObject = stream;
-        v.play().catch(() => {});
+        playRemote(stream);
         $('watchWaiting').classList.add('hidden');
       });
       call.on('close', () => {
@@ -405,8 +462,44 @@
     if (message) toast(message);
   }
 
-  $('btnStart').onclick = openPicker;
-  $('btnSwitch').onclick = openPicker;
+  // In a browser the system's own picker replaces ours.
+  async function shareFromBrowser() {
+    try {
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { frameRate: { ideal: 30, max: 60 } },
+        audio: true,
+      });
+      const [videoTrack] = stream.getVideoTracks();
+      const surface = videoTrack && videoTrack.getSettings().displaySurface;
+      if (videoTrack) videoTrack.contentHint = surface === 'monitor' ? 'motion' : 'detail';
+      const label = surface === 'monitor' ? 'Entire screen' : (videoTrack && videoTrack.label) || 'Shared screen';
+      await useStream(stream, label);
+    } catch (e) {
+      if (e && e.name !== 'NotAllowedError') toast('Could not start screen capture.', true);
+    }
+  }
+
+  const beginShare = () => (api.isWeb ? shareFromBrowser() : openPicker());
+  $('btnStart').onclick = () => {
+    if (!api.isWeb || api.canShare) beginShare();
+  };
+  $('btnSwitch').onclick = beginShare;
+
+  if (api.isWeb && !api.canShare) {
+    $('btnStart').disabled = true;
+    $('shareBlurb').textContent = api.ios
+      ? 'iPhone and iPad can watch screens but can\'t share them. Start sharing from a PC.'
+      : 'This browser can\'t share its screen. Use the desktop app or a desktop browser.';
+  }
+
+  const inviteLink = (code) => `${api.isWeb ? location.origin + location.pathname : PUBLIC_WEB_URL}#join=${code}`;
+  $('btnCopyLink').onclick = async () => {
+    if (!shareCode || !hostPeer || !hostPeer.open) return;
+    await api.copy(inviteLink(shareCode));
+    const label = $('btnCopyLink').querySelector('span');
+    label.textContent = 'Link copied!';
+    setTimeout(() => (label.textContent = 'Copy invite link'), 1600);
+  };
   $('btnStop').onclick = () => stopSharing('Sharing stopped.');
   $('btnCopy').onclick = async () => {
     if (!shareCode || !hostPeer || !hostPeer.open) return;
@@ -471,6 +564,30 @@
     }, JOIN_TIMEOUT_MS);
   }
 
+  // Browsers (iOS Safari especially) block autoplay with sound until the user
+  // taps, so fall back to muted playback and offer a one-tap unmute.
+  function playRemote(stream) {
+    const v = $('remoteVideo');
+    v.srcObject = stream;
+    v.muted = false;
+    $('btnUnmute').hidden = true;
+    $('btnMute').classList.remove('muted');
+    v.play().catch(() => {
+      v.muted = true;
+      $('btnMute').classList.add('muted');
+      v.play().catch(() => {});
+      if (stream.getAudioTracks().length) $('btnUnmute').hidden = false;
+    });
+  }
+
+  $('btnUnmute').onclick = () => {
+    const v = $('remoteVideo');
+    v.muted = false;
+    v.play().catch(() => {});
+    $('btnMute').classList.remove('muted');
+    $('btnUnmute').hidden = true;
+  };
+
   function endWatch() {
     clearTimeout(joinTimer);
     const conn = watchConn;
@@ -480,7 +597,9 @@
     if (call) call.close();
     if (conn) conn.close();
     $('remoteVideo').srcObject = null;
+    $('btnUnmute').hidden = true;
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+    if (location.hash) history.replaceState(null, '', location.pathname + location.search);
     showView('viewHome');
   }
 
@@ -489,25 +608,41 @@
   $('btnMute').onclick = () => {
     const v = $('remoteVideo');
     v.muted = !v.muted;
+    if (!v.muted) v.play().catch(() => {});
     $('btnMute').classList.toggle('muted', v.muted);
+    $('btnUnmute').hidden = true;
   };
 
   $('btnFull').onclick = () => {
+    const wrap = $('watchWrap');
+    const video = $('remoteVideo');
     if (document.fullscreenElement) document.exitFullscreen();
-    else $('watchWrap').requestFullscreen().catch(() => {});
+    else if (wrap.requestFullscreen) wrap.requestFullscreen().catch(() => {});
+    else if (video.webkitEnterFullscreen) video.webkitEnterFullscreen(); // iPhone
   };
   $('remoteVideo').ondblclick = () => $('btnFull').click();
 
-  // Hide the viewer toolbar when the mouse is idle.
+  // Hide the viewer toolbar when the mouse is idle; on touch screens a tap
+  // on the video toggles it.
   let idleTimer = null;
-  $('watchWrap').addEventListener('mousemove', () => {
+  function wakeToolbar() {
     const wrap = $('watchWrap');
     wrap.classList.remove('idle');
     clearTimeout(idleTimer);
     idleTimer = setTimeout(() => {
       if (!$('watchWaiting').classList.contains('hidden')) return;
       wrap.classList.add('idle');
-    }, 2500);
+    }, 3000);
+  }
+  $('watchWrap').addEventListener('mousemove', wakeToolbar);
+  $('remoteVideo').addEventListener('touchend', (e) => {
+    const wrap = $('watchWrap');
+    if (wrap.classList.contains('idle')) {
+      e.preventDefault();
+      wakeToolbar();
+    } else {
+      wrap.classList.add('idle');
+    }
   });
 
   window.addEventListener('resize', () => {
@@ -519,5 +654,22 @@
     if (idlePeer) idlePeer.destroy();
   });
 
+  // Invite links look like …/#join=ABC123.
+  function readInviteHash() {
+    const m = location.hash.match(/join=([A-Za-z0-9-]+)/);
+    if (!m) return;
+    const code = normalizeCode(m[1]);
+    if (code.length !== 6) return;
+    joinInput.value = formatCode(code);
+    if (idlePeer && idlePeer.open && !watchConn) startWatch(code);
+    else pendingJoinCode = code;
+  }
+  window.addEventListener('hashchange', readInviteHash);
+
+  if (api.isWeb && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+
   initIdlePeer();
+  readInviteHash();
 })();
