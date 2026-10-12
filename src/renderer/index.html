@@ -31,6 +31,8 @@
       <span class="brand-name">Nebula <b>Share</b></span>
     </div>
     <div class="net-status" id="netStatus"><i></i><span>Connecting…</span></div>
+    <div class="tb-right">
+    <button class="tb-icon" id="btnSettings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg></button>
     <div class="win-controls">
       <button id="btnMin" title="Minimize">
         <svg viewBox="0 0 10 10"><path d="M1 5h8" /></svg>
@@ -41,6 +43,7 @@
       <button id="btnClose" class="close" title="Close">
         <svg viewBox="0 0 10 10"><path d="M1.5 1.5l7 7M8.5 1.5l-7 7" /></svg>
       </button>
+    </div>
     </div>
   </header>
 
@@ -111,6 +114,13 @@
             <div class="viewer-count"><b id="viewerCount">0</b><span>watching now</span></div>
             <ul class="viewer-list" id="viewerList"></ul>
           </div>
+          <div class="panel-block">
+            <span class="eyebrow">Stream</span>
+            <button class="stream-meta" id="btnStreamSettings" title="Stream settings">
+              <span id="streamMeta">Auto · 30 fps</span>
+              <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg>
+            </button>
+          </div>
           <div class="panel-block grow"></div>
           <button class="btn btn-ghost btn-block" id="btnSwitch">
             <svg viewBox="0 0 24 24"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>
@@ -139,10 +149,14 @@
         <div class="watch-toolbar">
           <div class="watch-info"><div class="live-badge static"><i></i>LIVE</div><span id="watchCode"></span></div>
           <div class="watch-actions">
-            <button class="icon-btn" id="btnMute" title="Mute / unmute">
-              <svg viewBox="0 0 24 24" class="ico-on"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg>
-              <svg viewBox="0 0 24 24" class="ico-off"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M17 9l5 6M22 9l-5 6" /></svg>
-            </button>
+            <div class="vol-group">
+              <button class="icon-btn" id="btnMute" title="Mute / unmute">
+                <svg viewBox="0 0 24 24" class="ico-on"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12" /></svg>
+                <svg viewBox="0 0 24 24" class="ico-off"><path d="M4 9v6h4l5 4V5L8 9H4z" /><path d="M17 9l5 6M22 9l-5 6" /></svg>
+              </button>
+              <input type="range" class="range vol-slider" id="volSlider" min="0" max="100" step="1" value="100" title="Volume" />
+            </div>
+            <button class="icon-btn" id="btnWatchSettings" title="Settings"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3" /><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" /></svg></button>
             <button class="icon-btn" id="btnFull" title="Fullscreen">
               <svg viewBox="0 0 24 24"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" /></svg>
             </button>
@@ -193,6 +207,60 @@
             Share
           </button>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings -->
+  <div class="modal" id="settings">
+    <div class="modal-card settings-card">
+      <div class="modal-head">
+        <div>
+          <h3>Settings</h3>
+          <p>Saved on this device. Changes apply instantly.</p>
+        </div>
+        <button class="icon-btn" id="btnSettingsClose" title="Close">
+          <svg viewBox="0 0 24 24"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
+      <div class="settings-body">
+        <section class="set-section" id="setStream">
+          <h4>Your stream <span class="set-hint">what viewers receive when you share</span></h4>
+          <div class="set-row">
+            <label>Quality</label>
+            <div class="seg" id="segQuality">
+              <button data-v="auto">Auto</button>
+              <button data-v="720">720p</button>
+              <button data-v="1080">1080p</button>
+              <button data-v="1440">1440p</button>
+              <button data-v="source">Source</button>
+            </div>
+          </div>
+          <div class="set-row">
+            <label>Frame rate</label>
+            <div class="seg" id="segFps">
+              <button data-v="15">15 fps</button>
+              <button data-v="30">30 fps</button>
+              <button data-v="60">60 fps</button>
+            </div>
+          </div>
+          <p class="set-note" id="qualityNote"></p>
+        </section>
+        <section class="set-section">
+          <h4>Playback <span class="set-hint">when you watch someone</span></h4>
+          <div class="set-row" id="rowVolume">
+            <label>Volume</label>
+            <div class="range-wrap">
+              <input type="range" class="range" id="setVolume" min="0" max="100" step="1" value="100" />
+              <output id="setVolumeVal">100%</output>
+            </div>
+          </div>
+          <div class="set-row" id="rowOutput">
+            <label>Audio output</label>
+            <select class="select" id="setOutput"><option value="">System default</option></select>
+          </div>
+          <p class="set-note" id="playbackNote" hidden></p>
+        </section>
       </div>
     </div>
   </div>

@@ -1,7 +1,7 @@
 {
   "name": "nebula-share",
   "productName": "Nebula Share",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Peer-to-peer screen sharing for Windows. Share your screen or a single window with anyone running Nebula Share.",
   "main": "src/main.js",
   "author": "mvpfishstick",

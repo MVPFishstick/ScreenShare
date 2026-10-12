@@ -112,6 +112,34 @@
   const formatCode = (raw) => (raw.length > 3 ? `${raw.slice(0, 3)}-${raw.slice(3)}` : raw);
   const normalizeCode = (input) => input.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6);
 
+  // ---------- Settings (persisted per device) ----------
+  // height: cap on the sent resolution (null = native); bitrate: encoder ceiling.
+  const QUALITY = {
+    auto: { label: 'Auto', height: null, bitrate: 8_000_000, degrade: 'balanced' },
+    720: { label: '720p', height: 720, bitrate: 3_000_000, degrade: 'maintain-resolution' },
+    1080: { label: '1080p', height: 1080, bitrate: 6_000_000, degrade: 'maintain-resolution' },
+    1440: { label: '1440p', height: 1440, bitrate: 10_000_000, degrade: 'maintain-resolution' },
+    source: { label: 'Source', height: null, bitrate: 16_000_000, degrade: 'maintain-resolution' },
+  };
+  const QUALITY_NOTES = {
+    auto: 'Auto keeps full resolution and adapts sharpness and smoothness to the connection.',
+    720: '720p uses the least bandwidth. Good for slow connections.',
+    1080: '1080p is sharp enough for text and video on most screens.',
+    1440: '1440p needs a fast connection on both ends.',
+    source: 'Source sends your screen at full resolution with a high bitrate. Needs a fast connection.',
+  };
+  const SETTINGS_KEY = 'nebula-settings';
+  const settings = { quality: 'auto', fps: 30, volume: 100, outputId: '' };
+  try { Object.assign(settings, JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}')); } catch (_) { /* ignore */ }
+  if (!QUALITY[settings.quality]) settings.quality = 'auto';
+  if (![15, 30, 60].includes(Number(settings.fps))) settings.fps = 30;
+  settings.fps = Number(settings.fps);
+  settings.volume = Math.min(100, Math.max(0, Number(settings.volume) || 0));
+  function saveSettings() {
+    try { localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings)); } catch (_) { /* ignore */ }
+  }
+  const canPickOutput = typeof HTMLMediaElement !== 'undefined' && 'setSinkId' in HTMLMediaElement.prototype;
+
   // ---------- Window controls ----------
   $('btnMin').onclick = () => api.minimize();
   $('btnMax').onclick = () => api.maximize();
@@ -307,7 +335,7 @@
     try {
       await api.selectSource(selectedSourceId, selectedSourceName, wantAudio);
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 60 } },
+        video: { frameRate: { ideal: settings.fps, max: settings.fps } },
         audio: wantAudio,
       });
       const [videoTrack] = stream.getVideoTracks();
@@ -333,6 +361,7 @@
     if (hostPeer) {
       // Switching source while live: swap tracks on every existing call.
       for (const v of viewers.values()) replaceTracks(v.call, stream);
+      $('localVideo').addEventListener('resize', applyStreamSettings, { once: true });
     } else {
       startHosting();
     }
@@ -350,17 +379,38 @@
     }
   }
 
+  // Applies quality/fps settings to one viewer's video sender. Resolution is
+  // capped by scaling down at the encoder, which keeps the aspect ratio.
   function tuneSenders(call) {
-    const pc = call.peerConnection;
+    const pc = call && call.peerConnection;
     if (!pc) return;
+    const q = QUALITY[settings.quality];
+    // Window captures report the screen size in getSettings(), so prefer the
+    // real frame size from the local preview.
+    const track = localStream && localStream.getVideoTracks()[0];
+    const nativeHeight = $('localVideo').videoHeight || (track && track.getSettings().height) || 0;
     for (const sender of pc.getSenders()) {
       if (!sender.track || sender.track.kind !== 'video') continue;
       const params = sender.getParameters();
       if (!params.encodings || !params.encodings.length) continue;
-      params.encodings[0].maxBitrate = 8_000_000;
-      params.degradationPreference = 'maintain-resolution';
+      const enc = params.encodings[0];
+      enc.maxBitrate = q.bitrate;
+      enc.maxFramerate = settings.fps;
+      enc.scaleResolutionDownBy = q.height && nativeHeight > q.height ? nativeHeight / q.height : 1;
+      params.degradationPreference = q.degrade;
       sender.setParameters(params).catch(() => {});
     }
+  }
+
+  function applyStreamSettings() {
+    const track = localStream && localStream.getVideoTracks()[0];
+    if (track) track.applyConstraints({ frameRate: { ideal: settings.fps, max: settings.fps } }).catch(() => {});
+    for (const v of viewers.values()) tuneSenders(v.call);
+    updateStreamMeta();
+  }
+
+  function updateStreamMeta() {
+    $('streamMeta').textContent = `${QUALITY[settings.quality].label} · ${settings.fps} fps`;
   }
 
   function startHosting() {
@@ -466,7 +516,7 @@
   async function shareFromBrowser() {
     try {
       const stream = await navigator.mediaDevices.getDisplayMedia({
-        video: { frameRate: { ideal: 30, max: 60 } },
+        video: { frameRate: { ideal: settings.fps, max: settings.fps } },
         audio: true,
       });
       const [videoTrack] = stream.getVideoTracks();
@@ -569,6 +619,7 @@
   function playRemote(stream) {
     const v = $('remoteVideo');
     v.srcObject = stream;
+    applyPlaybackSettings();
     v.muted = false;
     $('btnUnmute').hidden = true;
     $('btnMute').classList.remove('muted');
@@ -608,10 +659,53 @@
   $('btnMute').onclick = () => {
     const v = $('remoteVideo');
     v.muted = !v.muted;
-    if (!v.muted) v.play().catch(() => {});
+    if (!v.muted) {
+      if (settings.volume === 0) setVolume(50);
+      v.play().catch(() => {});
+    }
     $('btnMute').classList.toggle('muted', v.muted);
     $('btnUnmute').hidden = true;
   };
+
+  function paintRange(el) {
+    el.style.setProperty('--fill', `${((el.value - el.min) / (el.max - el.min)) * 100}%`);
+  }
+
+  function setVolume(value) {
+    settings.volume = Math.min(100, Math.max(0, Math.round(value)));
+    saveSettings();
+    const v = $('remoteVideo');
+    v.volume = settings.volume / 100;
+    if (settings.volume > 0 && v.muted && v.srcObject && $('btnUnmute').hidden) v.muted = false;
+    $('btnMute').classList.toggle('muted', v.muted || settings.volume === 0);
+    for (const id of ['volSlider', 'setVolume']) {
+      $(id).value = settings.volume;
+      paintRange($(id));
+    }
+    $('setVolumeVal').textContent = `${settings.volume}%`;
+  }
+
+  function applyPlaybackSettings() {
+    const v = $('remoteVideo');
+    v.volume = settings.volume / 100;
+    if (canPickOutput) {
+      v.setSinkId(settings.outputId || '').catch(() => {
+        if (!settings.outputId) return;
+        settings.outputId = '';
+        saveSettings();
+        v.setSinkId('').catch(() => {});
+        toast('That audio output is not available. Using the system default.', true);
+      });
+    }
+  }
+
+  $('volSlider').addEventListener('input', (e) => setVolume(Number(e.target.value)));
+  $('setVolume').addEventListener('input', (e) => setVolume(Number(e.target.value)));
+  // Mouse wheel over the speaker adjusts volume.
+  document.querySelector('.vol-group').addEventListener('wheel', (e) => {
+    e.preventDefault();
+    setVolume(settings.volume + (e.deltaY < 0 ? 5 : -5));
+  }, { passive: false });
 
   $('btnFull').onclick = () => {
     const wrap = $('watchWrap');
@@ -669,6 +763,93 @@
   if (api.isWeb && 'serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
     navigator.serviceWorker.register('sw.js').catch(() => {});
   }
+
+  // ---------- Settings modal ----------
+  function renderSegs() {
+    for (const [id, key] of [['segQuality', 'quality'], ['segFps', 'fps']]) {
+      $(id).querySelectorAll('button').forEach((b) => b.classList.toggle('active', String(settings[key]) === b.dataset.v));
+    }
+    $('qualityNote').textContent = QUALITY_NOTES[settings.quality];
+  }
+
+  $('segQuality').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    settings.quality = b.dataset.v;
+    saveSettings();
+    renderSegs();
+    applyStreamSettings();
+  });
+  $('segFps').addEventListener('click', (e) => {
+    const b = e.target.closest('button');
+    if (!b) return;
+    settings.fps = Number(b.dataset.v);
+    saveSettings();
+    renderSegs();
+    applyStreamSettings();
+  });
+
+  async function refreshOutputs() {
+    if (!canPickOutput || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    let outputs = [];
+    try {
+      outputs = (await navigator.mediaDevices.enumerateDevices()).filter((d) => d.kind === 'audiooutput');
+    } catch (_) { /* ignore */ }
+    const sel = $('setOutput');
+    sel.innerHTML = '';
+    const def = document.createElement('option');
+    def.value = '';
+    def.textContent = 'System default';
+    sel.appendChild(def);
+    outputs.filter((d) => d.deviceId && d.deviceId !== 'default').forEach((d, i) => {
+      const o = document.createElement('option');
+      o.value = d.deviceId;
+      o.textContent = d.label || `Speaker ${i + 1}`;
+      sel.appendChild(o);
+    });
+    const known = [...sel.options].some((o) => o.value === settings.outputId);
+    sel.value = known ? settings.outputId : '';
+  }
+
+  $('setOutput').addEventListener('change', (e) => {
+    settings.outputId = e.target.value;
+    saveSettings();
+    applyPlaybackSettings();
+  });
+  if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+    navigator.mediaDevices.addEventListener('devicechange', refreshOutputs);
+  }
+
+  function openSettings() {
+    renderSegs();
+    setVolume(settings.volume);
+    refreshOutputs();
+    $('settings').classList.add('open');
+  }
+  const closeSettings = () => $('settings').classList.remove('open');
+
+  $('btnSettings').onclick = openSettings;
+  $('btnWatchSettings').onclick = openSettings;
+  $('btnStreamSettings').onclick = openSettings;
+  $('btnSettingsClose').onclick = closeSettings;
+  $('settings').addEventListener('mousedown', (e) => {
+    if (e.target.id === 'settings') closeSettings();
+  });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && $('settings').classList.contains('open')) closeSettings();
+  });
+
+  // Hide what this device can't do.
+  if (api.isWeb && !api.canShare) $('setStream').hidden = true;
+  if (!canPickOutput) $('rowOutput').hidden = true;
+  if (api.ios) {
+    // iOS ignores page volume; the hardware buttons control it.
+    $('rowVolume').hidden = true;
+    $('playbackNote').hidden = false;
+    $('playbackNote').textContent = 'On iPhone and iPad, use the volume buttons on the side of the device.';
+  }
+  setVolume(settings.volume);
+  updateStreamMeta();
 
   initIdlePeer();
   readInviteHash();

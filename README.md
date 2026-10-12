@@ -5,6 +5,7 @@ A peer-to-peer screen sharing app for Windows, with a companion web app for iPho
 - Choose an entire display or a single application window, with live thumbnails
 - Optional system audio (Windows loopback capture)
 - Several viewers can watch at once, and you can switch source without dropping them
+- Settings for stream quality (720p to Source), frame rate (15/30/60 fps), playback volume and audio output device
 - Peer-to-peer WebRTC, encrypted end to end (DTLS-SRTP). No accounts.
 - Frameless purple and black UI with a custom title bar
 
