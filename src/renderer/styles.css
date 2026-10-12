@@ -246,7 +246,7 @@ main { position: relative; z-index: 1; height: calc(100% - var(--top)); }
 /* ---------- Watch view ---------- */
 #viewWatch { padding: 0; overflow: hidden; }
 .watch-wrap { position: absolute; inset: 0; background: #000; display: grid; place-items: center; }
-.watch-wrap video { width: 100%; height: 100%; object-fit: contain; }
+.watch-wrap video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
 .watch-waiting {
   position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 22px;
   background: radial-gradient(60% 60% at 50% 50%, rgba(109, 40, 217, 0.25), transparent 70%), var(--bg-0);
