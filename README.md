@@ -37,7 +37,7 @@ iOS lets apps *watch* a screen but doesn't let web apps capture the screen, so o
 - `NebulaShare-Setup-x.y.z.exe`, the installer (recommended)
 - `NebulaShare-Portable-x.y.z.exe`, a single exe that needs no install
 
-**Publishing a new version:** bump `version` in `package.json`, then push a matching tag (`git tag v1.0.1 && git push origin v1.0.1`). The *Release* workflow builds both exes on Windows and publishes the release.
+**Publishing a new version:** bump `version` in `package.json`, and merge to `main`. The *Release* workflow sees there is no release for that version yet, builds both exes on Windows, and publishes `v<version>` automatically.
 
 **Build it yourself** (Node.js 20+):
 

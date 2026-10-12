@@ -1,16 +1,42 @@
 name: Release
 
-# Push a version tag (e.g. v1.0.0) to build the Windows app and publish it
-# as a GitHub Release with the installer and portable exe attached.
+# Publishes the Windows app as a GitHub Release (installer + portable exe).
+# Runs on every push to main and creates release v<version> from package.json
+# if it doesn't exist yet, so bumping "version" is all a new release needs.
+# Pushing a v* tag or running it by hand also works.
 on:
   push:
+    branches: [main]
     tags: ['v*']
+  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      tag: ${{ steps.v.outputs.tag }}
+      needed: ${{ steps.v.outputs.needed }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="v$(node -p "require('./package.json').version")"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          if gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            echo "Release $tag already exists, nothing to do."
+            echo "needed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "needed=true" >> "$GITHUB_OUTPUT"
+          fi
+
   release:
+    needs: check
+    if: needs.check.outputs.needed == 'true'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -22,8 +48,11 @@ jobs:
       - run: npx electron-builder --win --x64 --publish never
       - uses: softprops/action-gh-release@v2
         with:
-          name: Nebula Share ${{ github.ref_name }}
+          tag_name: ${{ needs.check.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Nebula Share ${{ needs.check.outputs.tag }}
           body_path: .github/release-notes.md
+          make_latest: true
           files: |
             dist/NebulaShare-Setup-*.exe
             dist/NebulaShare-Portable-*.exe
