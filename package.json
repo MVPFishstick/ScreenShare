@@ -1,0 +1,65 @@
+{
+  "name": "nebula-share",
+  "productName": "Nebula Share",
+  "version": "1.0.0",
+  "description": "Peer-to-peer screen sharing for Windows. Share your screen or a single window with anyone running Nebula Share.",
+  "main": "src/main.js",
+  "author": "mvpfishstick",
+  "license": "MIT",
+  "scripts": {
+    "postinstall": "node scripts/copy-vendor.js",
+    "start": "electron .",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "build:web": "node scripts/build-web.js"
+  },
+  "dependencies": {
+    "peerjs": "1.5.5"
+  },
+  "devDependencies": {
+    "electron": "44.7.0",
+    "electron-builder": "26.15.3"
+  },
+  "build": {
+    "appId": "com.nebulashare.app",
+    "productName": "Nebula Share",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "!src/renderer/sw.js",
+      "!src/renderer/manifest.webmanifest",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Nebula Share",
+      "artifactName": "NebulaShare-Setup-${version}.exe"
+    },
+    "portable": {
+      "artifactName": "NebulaShare-Portable-${version}.exe"
+    }
+  },
+  "homepage": "https://mvpfishstick.github.io/ScreenShare/"
+}

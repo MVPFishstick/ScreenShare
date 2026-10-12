@@ -1,0 +1,6 @@
+node_modules/
+dist/
+*.log
+src/renderer/vendor/
+dist-web/
+marketing/*.mp4
