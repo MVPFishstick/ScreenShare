@@ -32,10 +32,12 @@ iOS lets apps *watch* a screen but doesn't let web apps capture the screen, so o
 
 ## Download / build (Windows)
 
-**Prebuilt:** every push to `main` runs the *Build Windows app* GitHub Action. Download the `NebulaShare-windows` artifact from the run. It contains:
+**Download:** grab the latest version from the [**Releases page**](https://github.com/MVPFishstick/ScreenShare/releases/latest):
 
-- `Nebula Share Setup x.y.z.exe`, the installer
+- `NebulaShare-Setup-x.y.z.exe`, the installer (recommended)
 - `NebulaShare-Portable-x.y.z.exe`, a single exe that needs no install
+
+**Publishing a new version:** bump `version` in `package.json`, then push a matching tag (`git tag v1.0.1 && git push origin v1.0.1`). The *Release* workflow builds both exes on Windows and publishes the release.
 
 **Build it yourself** (Node.js 20+):
 
@@ -45,7 +47,7 @@ npm start            # run in development
 npm run dist         # build installer + portable exe into dist/
 ```
 
-`npm run dist` also works from Linux and macOS (no Wine needed).
+`npm run dist` needs Windows (or Wine on Linux/macOS) for the installer. `npm run dist:portable` builds the portable exe from any OS.
 
 ## How it works
 

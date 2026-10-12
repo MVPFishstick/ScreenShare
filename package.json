@@ -54,7 +54,8 @@
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Nebula Share"
+      "shortcutName": "Nebula Share",
+      "artifactName": "NebulaShare-Setup-${version}.exe"
     },
     "portable": {
       "artifactName": "NebulaShare-Portable-${version}.exe"
